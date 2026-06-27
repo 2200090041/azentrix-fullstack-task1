@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Personal Budget Tracker</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    background: linear-gradient(to right, #eef2f3, #dfe9f3);
+    font-family: 'Poppins', sans-serif;
+}
+
+.dark-mode {
+    background: #121212;
+    color: white;
+}
+
+.dark-mode .form-container,
+.dark-mode .table-container {
+    background: rgba(30,30,30,0.9);
+    color: white;
+}
+
+.form-container, .table-container {
+    padding: 20px;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    background: rgba(255,255,255,0.9);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.card-summary {
+    border-radius: 15px;
+    color: white;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    transition: 0.3s;
+}
+
+.summary-income { background: linear-gradient(45deg,#28a745,#20c997); }
+.summary-expense { background: linear-gradient(45deg,#dc3545,#fd7e14); }
+.summary-balance { background: linear-gradient(45deg,#0d6efd,#6610f2); }
+
+.card-summary:hover {
+    transform: translateY(-6px) scale(1.02);
+}
+
+.btn-custom {
+    background: linear-gradient(45deg,#0d6efd,#6610f2);
+    color: white;
+    border: none;
+}
+
+.table thead {
+    background: #212529;
+    color: white;
+}
+
+#budgetChart {
+    width: 100% !important;
+    max-width: 350px;
+    height: 350px !important;
+    margin: auto;
+}
+
+.card {
+    border-radius: 15px;
+}
+tbody tr:hover {
+    background-color: #f1f5ff;
+    transition: 0.3s;
+}
+
+.dark-mode tbody tr:hover {
+    background-color: #2c2c2c;
+}
+
+.dark-mode .table {
+    color: white;
+}
+footer {
+    text-align: center;
+    margin-top: 30px;
+    padding: 15px;
+    color: gray;
+}
+</style>
+</head>
+
+<body>
+
+<!-- Navbar -->
+<nav class="navbar shadow"
+     style="background: linear-gradient(45deg,#0d6efd,#6610f2);">
+
+    <div class="container">
+
+        <!-- LEFT SIDE -->
+        <div class="text-white fw-bold fs-5">
+            <i class="fa-solid fa-user-circle"></i>
+
+            Welcome,
+            <span th:text="${username}">
+                User
+            </span>
+        </div>
+
+        <!-- CENTER -->
+        <div class="navbar-brand text-white fw-bold">
+            <i class="fa-solid fa-wallet"></i>
+            Budget Tracker
+        </div>
+
+        <!-- RIGHT SIDE -->
+        <div>
+
+            <button onclick="toggleDarkMode()"
+                    class="btn btn-light btn-sm">
+                🌙
+            </button>
+			<a href="/change-password"
+			   class="btn btn-warning btn-sm">
+			    Change Password
+			</a>
+			<a href="/profile"
+			   class="btn btn-info btn-sm">
+			    Profile
+			</a>
+
+			<a href="/logout"
+			   class="btn btn-danger btn-sm">
+			    Logout
+			</a>
+
+        </div>
+
+    </div>
+
+</nav>
+
+<div class="container mt-4">
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card card-summary summary-income text-center">
+			<div class="card-body">
+			    <h5>
+			        <i class="fa-solid fa-arrow-trend-up"></i>
+			        Income
+			    </h5>
+
+			    <h3>
+			        ₹ <span th:text="${income}">0</span>
+			    </h3>
+			</div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card card-summary summary-expense text-center">
+            <div class="card-body">
+				<h5>
+				    <i class="fa-solid fa-arrow-trend-down"></i>
+				    Expense
+				</h5>
+                <h3>₹ <span th:text="${expense}">0</span></h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card card-summary summary-balance text-center">
+            <div class="card-body">
+				<h5>
+				    <i class="fa-solid fa-wallet"></i>
+				    Balance
+				</h5>
+                <h3>₹ <span th:text="${balance}">0</span></h3>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-md-3">
+        <div class="card card-summary bg-dark text-center">
+            <div class="card-body">
+				<h5>
+				    <i class="fa-solid fa-list"></i>
+				    Total Transactions
+				</h5>
+                <h3 th:text="${count}"></h3>
+            </div>
+        </div>
+    </div>
+
+<h2 class="text-center mb-4 fw-bold">Create Your Budget</h2>
+
+<!-- Form -->
+<div class="form-container mb-4">
+<form action="/save" method="post">
+<div class="row">
+
+<div class="col-md-3 mb-3">
+<div class="input-group">
+<span class="input-group-text"><i class="fa fa-pen"></i></span>
+<input type="text" class="form-control" name="description" placeholder="Description" required>
+</div>
+</div>
+
+<div class="col-md-2 mb-3">
+<div class="input-group">
+<span class="input-group-text">₹</span>
+<input type="number" step="0.01" class="form-control" name="amount" required>
+</div>
+</div>
+
+<div class="col-md-2 mb-3">
+<select class="form-select" name="category" required>
+<option value="">Category</option>
+<option>Food</option>
+<option>Travel</option>
+<option>Salary</option>
+<option>Shopping</option>
+<option>Bills</option>
+</select>
+</div>
+
+<div class="col-md-2 mb-3">
+<input type="date" class="form-control" name="transactionDate" required>
+</div>
+
+<div class="col-md-2 mb-3">
+<select class="form-select" name="type" required>
+<option value="">Type</option>
+<option>Income</option>
+<option>Expense</option>
+</select>
+</div>
+
+<div class="col-md-1 mb-3">
+<button class="btn btn-custom w-100">Add</button>
+</div>
+
+</div>
+</form>
+</div>
+
+<!-- Charts Row -->
+<!-- Center Chart -->
+<div class="row justify-content-center mb-4">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body text-center">
+                <h4 class="fw-bold">Income vs Expense</h4>
+                <canvas id="budgetChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <input type="text"
+               id="searchInput"
+               class="form-control"
+               placeholder="Search by Category...">
+    </div>
+</div>
+
+
+    <div class="col-md-3">
+		<div class="mb-3">
+
+		    <a href="/export/excel"
+		       class="btn btn-success">
+		       Export Excel
+		    </a>
+
+		    <a href="/export/pdf"
+		       class="btn btn-danger">
+		       Export PDF
+		    </a>
+
+		</div>
+
+</div>
+<div class="row mb-3">
+
+    <div class="col-md-3">
+
+        <select id="typeFilter"
+                class="form-select">
+
+            <option value="all">
+                All Transactions
+            </option>
+
+            <option value="Income">
+                Income
+            </option>
+
+            <option value="Expense">
+                Expense
+            </option>
+
+        </select>
+
+    </div>
+
+</div>
+<!-- Table -->
+<div class="table-container">
+<h4>Transactions</h4>
+<table class="table table-bordered">
+<thead>
+<tr>
+<th>ID</th><th>Description</th><th>Amount</th><th>Category</th><th>Type</th><th>Date</th><th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+<tr th:each="t : ${transactions}">
+<td th:text="${t.id}"></td>
+<td th:text="${t.description}"></td>
+<td th:text="${t.amount}"></td>
+<td>
+
+    <span th:if="${t.category == 'Food'}"
+          class="badge bg-primary">
+        Food
+    </span>
+
+    <span th:if="${t.category == 'Travel'}"
+          class="badge bg-warning text-dark">
+        Travel
+    </span>
+
+    <span th:if="${t.category == 'Salary'}"
+          class="badge bg-success">
+        Salary
+    </span>
+
+    <span th:if="${t.category == 'Shopping'}"
+          class="badge bg-info text-dark">
+        Shopping
+    </span>
+
+    <span th:if="${t.category == 'Bills'}"
+          class="badge bg-danger">
+        Bills
+    </span>
+
+</td>
+<td>
+    <span th:if="${t.type == 'Income'}"
+          class="badge bg-success">
+        Income
+    </span>
+
+    <span th:if="${t.type == 'Expense'}"
+          class="badge bg-danger">
+        Expense
+    </span>
+</td>
+<td th:text="${t.transactionDate}"></td>
+<td>
+<a th:href="@{/edit/{id}(id=${t.id})}" class="btn btn-warning btn-sm">Edit</a>
+<a th:href="@{/delete/{id}(id=${t.id})}"
+   class="btn btn-danger btn-sm"
+   onclick="return confirm('Are you sure you want to delete this transaction?')">
+    Delete
+</a>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<nav class="mt-3">
+    <ul class="pagination justify-content-center">
+
+        <li class="page-item"
+            th:if="${currentPage > 0}">
+            <a class="page-link"
+               th:href="@{/(page=${currentPage - 1})}">
+                Previous
+            </a>
+        </li>
+
+        <li class="page-item"
+            th:each="i : ${#numbers.sequence(0,totalPages-1)}"
+            th:classappend="${i == currentPage} ? 'active'">
+
+            <a class="page-link"
+               th:text="${i + 1}"
+               th:href="@{/(page=${i})}">
+            </a>
+
+        </li>
+
+        <li class="page-item"
+            th:if="${currentPage < totalPages - 1}">
+            <a class="page-link"
+               th:href="@{/(page=${currentPage + 1})}">
+                Next
+            </a>
+        </li>
+
+    </ul>
+</nav>
+</div>
+
+
+
+<script>
+
+document.getElementById("searchInput").addEventListener("keyup", function () {
+
+    let value = this.value.toLowerCase();
+
+    let rows = document.querySelectorAll("tbody tr");
+
+    rows.forEach(row => {
+
+        let category = row.cells[3].textContent.toLowerCase();
+
+        if (category.includes(value)) {
+            row.style.display = "";
+        } else {
+            row.style.display = "none";
+        }
+
+    });
+
+});
+
+document
+.getElementById("typeFilter")
+.addEventListener("change", function(){
+
+    let value = this.value;
+
+    let rows =
+        document.querySelectorAll("tbody tr");
+
+    rows.forEach(row => {
+
+        let type =
+            row.cells[4]
+               .innerText
+               .trim();
+
+        if(value === "all" ||
+           type === value){
+
+            row.style.display = "";
+
+        }else{
+
+            row.style.display = "none";
+        }
+
+    });
+
+});
+
+function toggleDarkMode(){
+    document.body.classList.toggle("dark-mode");
+}
+
+</script>
+<script th:inline="javascript">
+
+let income = [[${income}]];
+let expense = [[${expense}]];
+
+const ctx = document.getElementById('budgetChart');
+
+new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Income', 'Expense'],
+        datasets: [{
+            data: [income, expense],
+            backgroundColor: [
+                '#28a745',
+                '#dc3545'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+</script>
+<footer>
+© 2026 Budget Tracker
+</footer>
+
+</body>
+</html>
